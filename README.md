@@ -1,2 +1,217 @@
-# think-jump
-think-jump
+# ThinkPHP 8.0 跳转扩展
+
+从 ThinkPHP 6.0 开始，从核心中移除Jump类，类里面包含`success`、`error`、`redirect`和`result`方法。这几个方法在项目里面用的蛮多的，所以将它们移植成一个扩展使用。
+
+## 安装
+```
+composer require bleeld/think-jump
+```
+
+## 使用示例
+
+### Jump::success($msg, $url, $wait, $header, $data)
+```php
+// 显示提示信息，然后返回上一页
+\bleeld\Jump::success('操作成功!');
+
+// 显示提示信息，然后返回Index/index页面
+\bleeld\Jump::success('操作成功!', 'Index/index');
+
+// 显示提示信息，然后15秒后返回Index/index页面
+\bleeld\Jump::success('操作成功!', 'Index/index', 15);
+
+// 显示提示信息，并且为页面添加header头，然后15秒后返回Index/index页面
+\bleeld\Jump::success('操作成功!', 'Index/index', 15, ['auth-token' => 'abcd学英语']);
+```
+
+### Jump::error($msg, $url, $wait, $header, $data)
+```php
+// 显示提示信息，然后返回上一页
+\bleeld\Jump::error('操作失败!');
+
+// 显示提示信息，然后返回Index/index页面
+\bleeld\Jump::error('操作失败!', 'Index/index');
+
+// 显示提示信息，然后15秒后返回Index/index页面
+\bleeld\Jump::error('操作失败!', 'Index/index', 15);
+
+// 显示提示信息，并且为页面添加header头，然后15秒后返回Index/index页面
+\bleeld\Jump::error('操作失败!', 'Index/index', 15, ['auth-token' => 'abcd学英语']);
+```
+
+### Jump::redirect($url, $msg, $code, $header)
+```php
+// 跳转到上一页
+\bleeld\Jump::redirect();
+
+// 跳转到Index/index页面，设置在AJAX请求下返回的信息
+\bleeld\Jump::redirect('Index/index', '请先登录');
+
+// 跳转到Index/index页面，设置状态码和在AJAX请求下返回的信息
+\bleeld\Jump::redirect('Index/index', '请先登录', 301);
+
+// 跳转到Index/index页面，设置状态码、Header头和在AJAX请求下返回的信息
+\bleeld\Jump::redirect('Index/index', '请先登录', 301, ['auth-token' => 'abcd学英语']);
+```
+
+### Jump::result($data, $code, $msg, $type, $header)
+```php
+$result = [
+    ['id' => 1, 'name' => 'jwj'],
+    ['id' => 2, 'name' => 'china'],
+];
+
+// 返回封装后的数据集
+\bleeld\Jump::result($result);
+
+// 返回封装后的数据集，并且设置code
+\bleeld\Jump::result($result, 'success');
+
+// 返回封装后的数据集，并且设置code和msg
+\bleeld\Jump::result($result, 'success', '查询成功');
+
+// 返回封装后的数据集，并且设置code、msg和数据类型
+\bleeld\Jump::result($result, 'success', '查询成功', 'json');
+
+// 返回封装后的数据集，并且设置code、msg、数据类型和Header头
+\bleeld\Jump::result($result, 'success', '查询成功', 'json', ['auth-token' => 'abcd学英语']);
+```
+
+## AJAX请求
+当前请求信息`header`中的`x-requested-with`为`XMLHttpRequest`时，会被认定为AJAX请求。
+这时候，程序根据`header`中的`accept`来自动判断客户端所需要的数据类型，然后返回对应的数据类型。
+
+目前，仅支持三种数据类型：`json`、`jsonp`和`xml`。
+
+### JSON返回示例
+```json
+{
+    "code": 0,
+    "msg": "操作成功!",
+    "url": "/Index/index",
+    "wait": 15,
+    "data": null
+}
+```
+
+### JSONP返回示例
+> 可在请求信息中携带`callback`参数来自定义`JSONP`回调方法，一般放在URL地址参数中，也可以放在POST参数中。
+```js
+jsonpReturn({
+    "code": 0,
+    "msg": "操作成功!",
+    "url": "/Index/index",
+    "wait": 15,
+    "data": null
+});
+```
+
+### XML返回示例
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<think>
+    <code>0</code>
+    <msg>操作成功!</msg>
+    <url>/Index/index</url>
+    <wait>15</wait>
+    <data></data>
+</think>
+```
+
+## 返回Response
+为了方便在中间件里使用，`2.0.0`版本增加了返回`\think\Response`对象的支持，只需要在调用跳转方法前调用`returnResponse`方法即可。
+
+简单示例：
+```php
+return \bleeld\Jump::returnResponse()->success('操作成功!');
+
+return \bleeld\Jump::returnResponse()->error('操作失败!');
+
+return \bleeld\Jump::returnResponse()->redirect();
+
+reutrn \bleeld\Jump::returnResponse()->result([
+    ['id' => 1, 'name' => 'jwj'],
+    ['id' => 2, 'name' => 'china'],
+]);
+```
+
+中间件完整示例：
+```php
+<?php
+namespace app\middleware;
+
+use bleeld\Jump;
+
+class Check
+{
+
+    /**
+     * @param \think\Request $request
+     * @param \Closure $next
+     * @return \think\Response
+     */
+    public function handle($request, \Closure $next)
+    {
+        if (time() % 2) {
+            return Jump::returnResponse()->error('呀，偶数不能访问!');
+        } else {
+            return $next($request);
+        }
+    }
+}
+```
+
+## 配置
+
+### 配置文件
+引入本包时，默认会在配置文件目录 `/config` 自动创建 `jump.php` 配置文件，可根据需求修改配置内容。
+```php
+<?php
+// 跳转配置
+return [
+   // 成功跳转页面模板文件
+   'success_tmpl' => app()->getRootPath() . 'vendor/bleeld/think-jump/src/success.html',
+   // 成功跳转页停留时间(秒)
+   'success_wait' => 3,
+   // 成功跳转的code值
+   'success_code' => 0,
+   // 错误跳转页面模板文件
+   'error_tmpl'   => app()->getRootPath() . 'vendor/bleeld/think-jump/src/error.html',
+   // 错误跳转页停留时间(秒)
+   'error_wait'   => 3,
+   // 错误跳转的code值
+   'error_code'   => 1,
+    // 默认AJAX请求返回数据格式，可用：Json,Jsonp,Xml
+    'ajax_return' => 'Json',
+];
+```
+
+### 动态修改配置
+如果想使用时，动态修改配置，可以使用`Jump::setConfig()`方法。
+```php
+// 修改单项配置
+\bleeld\Jump::setConfig('success_wait', 1);
+
+// 修改多项配置
+\bleeld\Jump::setConfig([
+     // 成功跳转页停留时间(秒)
+     'success_wait' => 3,
+     // 成功跳转的code值
+     'success_code' => 0,
+     // 错误跳转页停留时间(秒)
+     'error_wait'   => 3,
+     // 错误跳转的code值
+     'error_code'   => 1,
+    // 默认AJAX请求返回数据格式，可用：Json,Jsonp,Xml
+    'ajax_return' => 'Json',
+]);
+```
+
+### 获取当前配置
+```php
+// 获取全部配置
+dump(\bleeld\Jump::getConfig());
+
+// 获取单项配置
+dump(\bleeld\Jump::getConfig('success_wait'));
+```
