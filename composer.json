@@ -1,0 +1,35 @@
+{
+  "name": "bleeld/think-jump",
+  "description": "ThinkPHP 8.0 跳转扩展",
+  "version": "1.0.0",
+  "keywords": [
+    "thinkphp",
+    "controller",
+    "jump"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "bleeld",
+      "email": "1755773846@qq.com",
+      "homepage": "https://www.bleeld.cn"
+    }
+  ],
+  "require": {
+    "php": ">=8.0.0",
+    "topthink/framework":"^8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "bleeld\\": "src"
+    },
+    "files": []
+  },
+  "extra": {
+    "think": {
+      "config":{
+        "jump": "src/config.php"
+      }
+    }
+  }
+}
